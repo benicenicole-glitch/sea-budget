@@ -227,6 +227,8 @@
   <div class="app">
     <h1>🌊 여름 가계부</h1>
 
+    <div id="errorBanner" style="display:none; background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; border-radius:10px; padding:10px 12px; margin-bottom:16px; font-size:13px; line-height:1.5;"></div>
+
     <div class="summary">
       <div>
         <div class="label">수입</div>
@@ -286,8 +288,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  function showError(msg) {
+    const banner = document.getElementById('errorBanner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.textContent = '⚠️ ' + msg;
+    }
+    console.error(msg);
+  }
+
   const SUPABASE_URL = 'https://vnukadqxlioezvhlukex.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_EkSpRdiRMS_BLgPOlJimsQ_bZTGSJvR';
+
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    showError('Supabase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 CDN(jsdelivr) 차단 여부를 확인하세요.');
+    throw new Error('Supabase library not loaded');
+  }
+
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const form = document.getElementById('entryForm');
@@ -303,7 +320,7 @@
       .order('entry_date', { ascending: false });
 
     if (error) {
-      console.error('항목을 불러오지 못했습니다.', error);
+      showError('항목을 불러오지 못했습니다: ' + error.message);
       return;
     }
 
@@ -360,7 +377,7 @@
         delBtn.addEventListener('click', async () => {
           const { error } = await supabase.from('ledger_entries').delete().eq('id', entry.id);
           if (error) {
-            console.error('삭제하지 못했습니다.', error);
+            showError('삭제하지 못했습니다: ' + error.message);
             return;
           }
           loadEntries();
@@ -443,10 +460,11 @@
       .insert({ type, description: desc, amount, entry_date: date });
 
     if (error) {
-      console.error('추가하지 못했습니다.', error);
+      showError('추가하지 못했습니다: ' + error.message);
       return;
     }
 
+    document.getElementById('errorBanner').style.display = 'none';
     document.getElementById('desc').value = '';
     amountInput.value = '';
     document.getElementById('desc').focus();
