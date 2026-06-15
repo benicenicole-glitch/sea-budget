@@ -284,31 +284,40 @@
     <ul id="list"></ul>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const STORAGE_KEY = 'household-ledger';
+  const SUPABASE_URL = 'https://vnukadqxlioezvhlukex.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_EkSpRdiRMS_BLgPOlJimsQ_bZTGSJvR';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   const form = document.getElementById('entryForm');
   const list = document.getElementById('list');
   const dateInput = document.getElementById('date');
 
-  function loadEntries() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch (err) {
-      return [];
-    }
-  }
+  let entries = [];
 
-  let entries = loadEntries();
+  async function loadEntries() {
+    const { data, error } = await supabase
+      .from('ledger_entries')
+      .select('*')
+      .order('entry_date', { ascending: false });
+
+    if (error) {
+      console.error('항목을 불러오지 못했습니다.', error);
+      return;
+    }
+
+    entries = data.map(row => ({
+      id: row.id,
+      type: row.type,
+      desc: row.description,
+      amount: Number(row.amount),
+      date: row.entry_date
+    }));
+    render();
+  }
 
   dateInput.value = new Date().toISOString().slice(0, 10);
-
-  function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (err) {
-      // localStorage 접근이 막힌 환경에서는 저장을 건너뛴다
-    }
-  }
 
   function formatWon(n) {
     return n.toLocaleString('ko-KR') + '원';
@@ -348,10 +357,13 @@
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-btn';
         delBtn.textContent = '✕';
-        delBtn.addEventListener('click', () => {
-          entries = entries.filter(e => e.id !== entry.id);
-          save();
-          render();
+        delBtn.addEventListener('click', async () => {
+          const { error } = await supabase.from('ledger_entries').delete().eq('id', entry.id);
+          if (error) {
+            console.error('삭제하지 못했습니다.', error);
+            return;
+          }
+          loadEntries();
         });
         right.append(amount, delBtn);
 
@@ -417,7 +429,7 @@
     amountInput.value = formatNumber(amountInput.value);
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const type = document.getElementById('type').value;
     const desc = document.getElementById('desc').value.trim();
@@ -426,16 +438,23 @@
 
     if (!desc || !amount || !date) return;
 
-    entries.push({ id: Date.now(), type, desc, amount, date });
-    save();
-    render();
+    const { error } = await supabase
+      .from('ledger_entries')
+      .insert({ type, description: desc, amount, entry_date: date });
+
+    if (error) {
+      console.error('추가하지 못했습니다.', error);
+      return;
+    }
 
     document.getElementById('desc').value = '';
     amountInput.value = '';
     document.getElementById('desc').focus();
+
+    loadEntries();
   });
 
-  render();
+  loadEntries();
 </script>
 </body>
 </html>
