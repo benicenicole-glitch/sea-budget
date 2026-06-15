@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>간단 가계부</title>
+<style>
+  :root {
+    --ocean-deep: #0c4a6e;
+    --ocean: #0284c7;
+    --ocean-light: #38bdf8;
+    --sunset: #fb7185;
+    --ink: #0f3a52;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(160deg, #0369a1 0%, #0ea5e9 45%, #5eead4 100%);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 200px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 220' preserveAspectRatio='none'%3E%3Cpath fill='%23ffffff' fill-opacity='0.18' d='M0,120 C240,200 480,40 720,100 C960,160 1200,40 1440,100 L1440,220 L0,220 Z'/%3E%3C/svg%3E");
+    background-size: cover;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .app {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(3, 105, 161, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    margin-bottom: 16px;
+    color: var(--ocean-deep);
+  }
+  .summary {
+    display: flex;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #e0f7fa, #cffafe);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #bae6fd;
+  }
+  .summary div { text-align: center; flex: 1; }
+  .summary .label { font-size: 13px; color: #5b8aa8; margin-bottom: 4px; }
+  .summary .value { font-size: 18px; font-weight: 700; }
+  .income-color { color: var(--ocean); }
+  .expense-color { color: var(--sunset); }
+  .balance-color { color: var(--ocean-deep); }
+
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  form input, form select, form button {
+    padding: 10px;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+  }
+  form input:focus, form select:focus {
+    outline: none;
+    border-color: var(--ocean-light);
+  }
+  form input[type="text"], form input[type="number"] { flex: 1 1 120px; }
+  form input[type="date"] { flex: 1 1 130px; }
+  form select { flex: 0 0 90px; }
+  form button {
+    flex: 0 0 100%;
+    background: linear-gradient(135deg, var(--ocean-light), var(--ocean));
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  form button:hover { opacity: 0.85; }
+
+  ul#list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  ul#list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f0fbff;
+    border: 1px solid #e0f2fe;
+  }
+  .item-info { display: flex; flex-direction: column; gap: 2px; }
+  .item-desc { font-weight: 600; font-size: 14px; }
+  .item-date { font-size: 12px; color: #94a3b8; }
+  .item-amount { font-weight: 700; font-size: 15px; }
+  .item-right { display: flex; align-items: center; gap: 8px; }
+  .delete-btn {
+    border: none;
+    background: none;
+    color: #94c2db;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .delete-btn:hover { color: var(--sunset); }
+
+  .empty {
+    text-align: center;
+    color: #94c2db;
+    padding: 30px 0;
+    font-size: 14px;
+  }
+
+  .stats {
+    background: linear-gradient(135deg, #e0f7fa, #cffafe);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #bae6fd;
+  }
+  .stats-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .month-btn {
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: var(--ocean);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .month-btn:hover { background: rgba(255, 255, 255, 0.6); }
+  .month-label { font-weight: 700; font-size: 15px; min-width: 90px; text-align: center; color: var(--ocean-deep); }
+
+  .donut-wrap {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 12px;
+  }
+  .donut-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .donut-bg {
+    fill: #fff;
+    stroke: #bae6fd;
+    stroke-width: 20;
+  }
+  .donut-fg {
+    fill: none;
+    stroke: var(--ocean);
+    stroke-width: 20;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.4s ease;
+  }
+  .donut-center {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .donut-percent { font-size: 24px; font-weight: 800; color: var(--ocean); }
+  .donut-sub { font-size: 12px; color: #5b8aa8; margin-top: 2px; }
+
+  .stats-info {
+    display: flex;
+    justify-content: space-around;
+  }
+  .stat-item { text-align: center; }
+  .stat-label {
+    font-size: 12px;
+    color: #5b8aa8;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .stat-value { font-size: 15px; font-weight: 700; }
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .dot-income { background: #fff; border: 1px solid #bae6fd; }
+  .dot-expense { background: var(--ocean); }
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1>🌊 여름 가계부</h1>
+
+    <div class="summary">
+      <div>
+        <div class="label">수입</div>
+        <div class="value income-color" id="totalIncome">0원</div>
+      </div>
+      <div>
+        <div class="label">지출</div>
+        <div class="value expense-color" id="totalExpense">0원</div>
+      </div>
+      <div>
+        <div class="label">잔액</div>
+        <div class="value balance-color" id="balance">0원</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stats-header">
+        <button type="button" id="prevMonth" class="month-btn">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button type="button" id="nextMonth" class="month-btn">›</button>
+      </div>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 200 200">
+          <circle class="donut-bg" cx="100" cy="100" r="80"></circle>
+          <circle class="donut-fg" id="donutFg" cx="100" cy="100" r="80"></circle>
+        </svg>
+        <div class="donut-center">
+          <div class="donut-percent" id="donutPercent">0%</div>
+          <div class="donut-sub">지출 비율</div>
+        </div>
+      </div>
+      <div class="stats-info">
+        <div class="stat-item">
+          <div class="stat-label"><span class="dot dot-income"></span>이번 달 수입</div>
+          <div class="stat-value income-color" id="monthIncome">0원</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label"><span class="dot dot-expense"></span>이번 달 지출</div>
+          <div class="stat-value expense-color" id="monthExpense">0원</div>
+        </div>
+      </div>
+    </div>
+
+    <form id="entryForm">
+      <select id="type">
+        <option value="income">수입</option>
+        <option value="expense">지출</option>
+      </select>
+      <input type="text" id="desc" placeholder="내용" required>
+      <input type="text" id="amount" placeholder="금액" inputmode="numeric" required>
+      <input type="date" id="date" required>
+      <button type="submit">추가하기</button>
+    </form>
+
+    <ul id="list"></ul>
+  </div>
+
+<script>
+  const STORAGE_KEY = 'household-ledger';
+  const form = document.getElementById('entryForm');
+  const list = document.getElementById('list');
+  const dateInput = document.getElementById('date');
+
+  function loadEntries() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch (err) {
+      return [];
+    }
+  }
+
+  let entries = loadEntries();
+
+  dateInput.value = new Date().toISOString().slice(0, 10);
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch (err) {
+      // localStorage 접근이 막힌 환경에서는 저장을 건너뛴다
+    }
+  }
+
+  function formatWon(n) {
+    return n.toLocaleString('ko-KR') + '원';
+  }
+
+  function formatNumber(value) {
+    const digits = value.replace(/[^\d]/g, '');
+    if (!digits) return '';
+    return Number(digits).toLocaleString('ko-KR');
+  }
+
+  function render() {
+    list.innerHTML = '';
+
+    if (entries.length === 0) {
+      list.innerHTML = '<li class="empty">아직 내역이 없어요. 첫 항목을 추가해보세요!</li>';
+    } else {
+      const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+      for (const entry of sorted) {
+        const li = document.createElement('li');
+
+        const info = document.createElement('div');
+        info.className = 'item-info';
+        const desc = document.createElement('div');
+        desc.className = 'item-desc';
+        desc.textContent = entry.desc;
+        const date = document.createElement('div');
+        date.className = 'item-date';
+        date.textContent = entry.date;
+        info.append(desc, date);
+
+        const right = document.createElement('div');
+        right.className = 'item-right';
+        const amount = document.createElement('div');
+        amount.className = 'item-amount ' + (entry.type === 'income' ? 'income-color' : 'expense-color');
+        amount.textContent = (entry.type === 'income' ? '+' : '-') + formatWon(entry.amount);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', () => {
+          entries = entries.filter(e => e.id !== entry.id);
+          save();
+          render();
+        });
+        right.append(amount, delBtn);
+
+        li.append(info, right);
+        list.appendChild(li);
+      }
+    }
+
+    const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const totalExpense = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+
+    document.getElementById('totalIncome').textContent = formatWon(totalIncome);
+    document.getElementById('totalExpense').textContent = formatWon(totalExpense);
+    document.getElementById('balance').textContent = formatWon(totalIncome - totalExpense);
+
+    renderStats();
+  }
+
+  let statsMonth = new Date();
+  statsMonth.setDate(1);
+
+  const donutFg = document.getElementById('donutFg');
+  const DONUT_CIRCUMFERENCE = 2 * Math.PI * 80;
+  donutFg.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE);
+
+  function renderStats() {
+    const year = statsMonth.getFullYear();
+    const month = statsMonth.getMonth();
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+    const monthEntries = entries.filter(e => e.date.startsWith(prefix));
+    const monthIncome = monthEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const monthExpense = monthEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
+
+    let ratio = 0;
+    if (monthIncome > 0) {
+      ratio = Math.min(monthExpense / monthIncome, 1);
+    } else if (monthExpense > 0) {
+      ratio = 1;
+    }
+
+    const offset = DONUT_CIRCUMFERENCE * (1 - ratio);
+    donutFg.setAttribute('stroke-dashoffset', offset);
+
+    document.getElementById('donutPercent').textContent = Math.round(ratio * 100) + '%';
+    document.getElementById('monthLabel').textContent = `${year}년 ${month + 1}월`;
+    document.getElementById('monthIncome').textContent = formatWon(monthIncome);
+    document.getElementById('monthExpense').textContent = formatWon(monthExpense);
+  }
+
+  document.getElementById('prevMonth').addEventListener('click', () => {
+    statsMonth.setMonth(statsMonth.getMonth() - 1);
+    renderStats();
+  });
+
+  document.getElementById('nextMonth').addEventListener('click', () => {
+    statsMonth.setMonth(statsMonth.getMonth() + 1);
+    renderStats();
+  });
+
+  const amountInput = document.getElementById('amount');
+  amountInput.addEventListener('input', () => {
+    amountInput.value = formatNumber(amountInput.value);
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const type = document.getElementById('type').value;
+    const desc = document.getElementById('desc').value.trim();
+    const amount = Number(amountInput.value.replace(/,/g, ''));
+    const date = dateInput.value;
+
+    if (!desc || !amount || !date) return;
+
+    entries.push({ id: Date.now(), type, desc, amount, date });
+    save();
+    render();
+
+    document.getElementById('desc').value = '';
+    amountInput.value = '';
+    document.getElementById('desc').focus();
+  });
+
+  render();
+</script>
+</body>
+</html>
